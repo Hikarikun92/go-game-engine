@@ -2,10 +2,14 @@ package game
 
 import (
 	"github.com/Hikarikun92/go-game-engine/state"
+	"github.com/Hikarikun92/go-game-engine/ui"
 	"time"
 )
 
 func Start(currentState state.State) {
+	window := ui.CreateMainWindow()
+	defer window.Destroy()
+
 	running := true
 	currentState.Load()
 
@@ -13,6 +17,13 @@ func Start(currentState state.State) {
 	ticker := time.NewTicker(16667 * time.Microsecond)
 
 	for running {
+		if window.ShouldClose() {
+			ticker.Stop()
+			currentState.Unload()
+			running = false
+			break
+		}
+
 		select {
 		case t := <-ticker.C:
 			delta := t.Sub(previousTime)
@@ -34,5 +45,7 @@ func Start(currentState state.State) {
 
 			previousTime = t
 		}
+
+		window.Update()
 	}
 }
