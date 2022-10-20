@@ -1,8 +1,10 @@
 package gl
 
 import (
+	"github.com/Hikarikun92/go-game-engine/graphics"
 	"github.com/Hikarikun92/go-game-engine/key"
 	"github.com/Hikarikun92/go-game-engine/ui"
+	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"log"
 	"runtime"
@@ -19,21 +21,65 @@ func (*GlWindowManager) CreateMainWindow() ui.Window {
 		log.Fatalln("Failed to initialize GLFW:", err)
 	}
 	glfw.WindowHint(glfw.Resizable, glfw.False)
+	glfw.WindowHint(glfw.Visible, glfw.False)
 	glfw.WindowHint(glfw.ContextVersionMajor, 4)
 	glfw.WindowHint(glfw.ContextVersionMinor, 1)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
+
 	window, err := glfw.CreateWindow(800, 600, "Example game", nil, nil)
 	if err != nil {
 		log.Fatalln("Failed to create window:", err)
 	}
 	window.MakeContextCurrent()
 
-	return &windowImpl{glfwWindow: window}
+	// Initialize Glow
+	if err := gl.Init(); err != nil {
+		log.Fatalln(err)
+	}
+
+	//TODO load shaders and retrieve the vertices and textures coordinates
+
+	vertices := []float32{
+		//x, y, i, v
+		0.5, 0.5, 1.0, 1.0, // top right
+		0.5, -0.5, 1.0, 0.0, // bottom right
+		-0.5, -0.5, 0.0, 0.0, // bottom left
+		-0.5, 0.5, 0.0, 1.0, // top left
+	}
+	indices := []int32{
+		0, 1, 3, // first triangle
+		1, 2, 3, // second triangle
+	}
+
+	var vao, vbo, ebo uint32
+	gl.GenVertexArrays(1, &vao)
+	gl.GenBuffers(1, &vbo)
+	gl.GenBuffers(1, &ebo)
+
+	gl.BindVertexArray(vao)
+
+	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
+
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices)*4, gl.Ptr(indices), gl.STATIC_DRAW)
+
+	window.Show()
+
+	return &windowImpl{
+		glfwWindow:          window,
+		vertexArrayObject:   vao,
+		vertextBufferObject: vbo,
+		elementBufferObject: ebo,
+	}
 }
 
 type windowImpl struct {
-	glfwWindow *glfw.Window
+	glfwWindow          *glfw.Window
+	vertexArrayObject   uint32
+	vertextBufferObject uint32
+	elementBufferObject uint32
 }
 
 func (w *windowImpl) SetKeyListener(listener key.Listener) {
@@ -298,6 +344,10 @@ func translateKey(glfwKey glfw.Key) key.Key {
 	}
 }
 
+func (w *windowImpl) CreateGraphics() graphics.Graphics {
+	return nil
+}
+
 func (w *windowImpl) ShouldClose() bool {
 	return w.glfwWindow.ShouldClose()
 }
@@ -308,6 +358,10 @@ func (w *windowImpl) Update() {
 }
 
 func (w *windowImpl) Destroy() {
+	gl.DeleteVertexArrays(1, &w.vertexArrayObject)
+	gl.DeleteBuffers(1, &w.vertextBufferObject)
+	gl.DeleteBuffers(1, &w.elementBufferObject)
+
 	w.glfwWindow.Destroy()
 	glfw.Terminate()
 }

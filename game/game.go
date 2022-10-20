@@ -8,16 +8,20 @@ import (
 	"time"
 )
 
-type Game struct {
+type Game interface {
+	Start()
+}
+
+type gameImpl struct {
 	windowManager ui.WindowManager
 	state         state.State
 }
 
-func NewGame(windowManager ui.WindowManager, initialState state.State) *Game {
-	return &Game{windowManager: windowManager, state: initialState}
+func NewGame(windowManager ui.WindowManager, initialState state.State) Game {
+	return &gameImpl{windowManager: windowManager, state: initialState}
 }
 
-func (game *Game) Start() {
+func (game *gameImpl) Start() {
 	window := game.windowManager.CreateMainWindow()
 	defer window.Destroy()
 
@@ -63,7 +67,7 @@ func (game *Game) Start() {
 	}
 }
 
-func (game *Game) KeyPressed(k key.Key) {
+func (game *gameImpl) KeyPressed(k key.Key) {
 	log.Println("KeyPressed:", k)
 
 	listener, isListener := game.state.(key.Listener)
@@ -72,7 +76,7 @@ func (game *Game) KeyPressed(k key.Key) {
 	}
 }
 
-func (game *Game) KeyReleased(k key.Key) {
+func (game *gameImpl) KeyReleased(k key.Key) {
 	log.Println("KeyReleased:", k)
 
 	listener, isListener := game.state.(key.Listener)
