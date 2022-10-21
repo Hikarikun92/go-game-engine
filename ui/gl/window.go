@@ -5,6 +5,7 @@ import (
 	"github.com/Hikarikun92/go-game-engine/ui"
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"github.com/go-gl/mathgl/mgl32"
 	"log"
 	"runtime"
 )
@@ -24,13 +25,17 @@ type windowImpl struct {
 	shaderProgram       uint32
 }
 
+const (
+	WIDTH  = 800
+	HEIGHT = 600
+)
+
 /*
 References:
 https://learnopengl.com/Getting-started/Textures
 https://learnopengl.com/In-Practice/2D-Game/Rendering-Sprites
 https://github.com/go-gl/example/blob/master/gl41core-cube/cube.go
 */
-
 func (*glWindowManager) CreateMainWindow() ui.Window {
 	// GLFW event handling must run on the main OS thread
 	runtime.LockOSThread()
@@ -45,7 +50,7 @@ func (*glWindowManager) CreateMainWindow() ui.Window {
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 
-	window, err := glfw.CreateWindow(800, 600, "Example game", nil, nil)
+	window, err := glfw.CreateWindow(WIDTH, HEIGHT, "Example game", nil, nil)
 	if err != nil {
 		log.Fatalln("Failed to create window:", err)
 	}
@@ -63,15 +68,20 @@ func (*glWindowManager) CreateMainWindow() ui.Window {
 
 	gl.UseProgram(shaderProgram)
 
+	//Usually you would set HEIGHT as the bottom value and 0 as the top, but I'm deliberately inverting it here
+	projection := mgl32.Ortho2D(0.0, WIDTH, 0, HEIGHT)
+	projectionUniform := gl.GetUniformLocation(shaderProgram, gl.Str("projection\x00"))
+	gl.UniformMatrix4fv(projectionUniform, 1, false, &projection[0])
+
 	textureUniform := gl.GetUniformLocation(shaderProgram, gl.Str("tex\x00"))
 	gl.Uniform1i(textureUniform, 0)
 
 	vertices := []float32{
 		// pos    // tex
-		0.0, 1.0, 0.0, 0.0, //bottom left
-		1.0, 0.0, 1.0, 1.0, //top right
-		0.0, 0.0, 0.0, 1.0, //top left
-		1.0, 1.0, 1.0, 0.0, //bottom right
+		0.0, 1.0, 0.0, 0.0, //top left vertex, bottom left texture
+		1.0, 0.0, 1.0, 1.0, //bottom right vertex, top right texture
+		0.0, 0.0, 0.0, 1.0, //bottom left vertex, top left texture
+		1.0, 1.0, 1.0, 0.0, //top right, bottom right texture
 	}
 	indices := []int32{
 		0, 1, 2,
@@ -129,7 +139,7 @@ func (w *windowImpl) CreateGraphics() ui.Graphics {
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 
-	return &graphicsImpl{}
+	return &graphicsImpl{shaderProgram: w.shaderProgram}
 }
 
 func (w *windowImpl) ShouldClose() bool {

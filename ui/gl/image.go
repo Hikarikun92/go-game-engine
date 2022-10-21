@@ -15,6 +15,8 @@ type imageLoaderImpl struct {
 
 type imageImpl struct {
 	textureId uint32
+	width     float32
+	height    float32
 }
 
 func (i *imageLoaderImpl) LoadImage(file string) ui.Image {
@@ -46,7 +48,11 @@ func (i *imageLoaderImpl) LoadImage(file string) ui.Image {
 
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(rgbaSize.X), int32(rgbaSize.Y), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba.Pix))
 
-	return imageImpl{textureId: texture}
+	return imageImpl{
+		textureId: texture,
+		width:     float32(rgbaSize.X),
+		height:    float32(rgbaSize.Y),
+	}
 }
 
 func (i *imageLoaderImpl) UnloadImage(image ui.Image) {
