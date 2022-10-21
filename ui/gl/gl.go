@@ -1,19 +1,42 @@
 package gl
 
 import (
-	"github.com/Hikarikun92/go-game-engine/graphics"
+	"fmt"
 	"github.com/Hikarikun92/go-game-engine/key"
 	"github.com/Hikarikun92/go-game-engine/ui"
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"image"
+	"image/draw"
+	_ "image/jpeg"
 	"log"
+	"os"
 	"runtime"
+	"strings"
 )
 
-type GlWindowManager struct {
+type glWindowManager struct {
 }
 
-func (*GlWindowManager) CreateMainWindow() ui.Window {
+func NewWindowManager() ui.WindowManager {
+	return &glWindowManager{}
+}
+
+type windowImpl struct {
+	glfwWindow         *glfw.Window
+	vertexArrayObject  uint32
+	vertexBufferObject uint32
+	shaderProgram      uint32
+}
+
+/*
+References:
+https://learnopengl.com/Getting-started/Textures
+https://learnopengl.com/In-Practice/2D-Game/Rendering-Sprites
+https://github.com/go-gl/example/blob/master/gl41core-cube/cube.go
+*/
+
+func (*glWindowManager) CreateMainWindow() ui.Window {
 	// GLFW event handling must run on the main OS thread
 	runtime.LockOSThread()
 
@@ -38,48 +61,133 @@ func (*GlWindowManager) CreateMainWindow() ui.Window {
 		log.Fatalln(err)
 	}
 
-	//TODO load shaders and retrieve the vertices and textures coordinates
+	shaderProgram, err := newShaderProgram()
+	if err != nil {
+		log.Fatalln("Failed to create shader program:", err)
+	}
+
+	gl.UseProgram(shaderProgram)
+
+	textureUniform := gl.GetUniformLocation(shaderProgram, gl.Str("tex\x00"))
+	gl.Uniform1i(textureUniform, 0)
 
 	vertices := []float32{
-		//x, y, i, v
-		0.5, 0.5, 1.0, 1.0, // top right
-		0.5, -0.5, 1.0, 0.0, // bottom right
-		-0.5, -0.5, 0.0, 0.0, // bottom left
-		-0.5, 0.5, 0.0, 1.0, // top left
-	}
-	indices := []int32{
-		0, 1, 3, // first triangle
-		1, 2, 3, // second triangle
+		// pos    // tex
+		-0.5, 0.5, 0.0, 0.0,
+		0.5, -0.5, 1.0, 1.0,
+		-0.5, -0.5, 0.0, 1.0,
+
+		-0.5, 0.5, 0.0, 0.0,
+		0.5, 0.5, 1.0, 0.0,
+		0.5, -0.5, 1.0, 1.0,
 	}
 
-	var vao, vbo, ebo uint32
+	var vao, vbo uint32
 	gl.GenVertexArrays(1, &vao)
 	gl.GenBuffers(1, &vbo)
-	gl.GenBuffers(1, &ebo)
 
 	gl.BindVertexArray(vao)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices)*4, gl.Ptr(indices), gl.STATIC_DRAW)
+	//position and texture attributes (the "location = 0" in the shader)
+	gl.VertexAttribPointerWithOffset(0, 4, gl.FLOAT, false, 4*4 /* 4 values per vertex * 4 bytes per value */, 0)
+	gl.EnableVertexAttribArray(0)
 
 	window.Show()
 
 	return &windowImpl{
-		glfwWindow:          window,
-		vertexArrayObject:   vao,
-		vertextBufferObject: vbo,
-		elementBufferObject: ebo,
+		glfwWindow:         window,
+		vertexArrayObject:  vao,
+		vertexBufferObject: vbo,
+		shaderProgram:      shaderProgram,
 	}
 }
 
-type windowImpl struct {
-	glfwWindow          *glfw.Window
-	vertexArrayObject   uint32
-	vertextBufferObject uint32
-	elementBufferObject uint32
+var vertexShader = `
+#version 330 core
+layout (location = 0) in vec4 vertexData;
+
+out vec2 TexCoord;
+
+void main()
+{
+	gl_Position = vec4(vertexData.xy, 0.0, 1.0);
+	TexCoord = vertexData.zw;
+}
+` + "\x00"
+
+var fragmentShader = `
+#version 330
+
+uniform sampler2D tex;
+
+in vec2 TexCoord;
+
+out vec4 outputColor;
+
+void main() {
+    outputColor = texture(tex, TexCoord);
+}
+` + "\x00"
+
+func newShaderProgram() (uint32, error) {
+	vertexShader, err := compileShader(vertexShader, gl.VERTEX_SHADER)
+	if err != nil {
+		return 0, err
+	}
+
+	fragmentShader, err := compileShader(fragmentShader, gl.FRAGMENT_SHADER)
+	if err != nil {
+		return 0, err
+	}
+
+	program := gl.CreateProgram()
+
+	gl.AttachShader(program, vertexShader)
+	gl.AttachShader(program, fragmentShader)
+	gl.LinkProgram(program)
+
+	var status int32
+	gl.GetProgramiv(program, gl.LINK_STATUS, &status)
+	if status == gl.FALSE {
+		var logLength int32
+		gl.GetProgramiv(program, gl.INFO_LOG_LENGTH, &logLength)
+
+		logValue := strings.Repeat("\x00", int(logLength+1))
+		gl.GetProgramInfoLog(program, logLength, nil, gl.Str(logValue))
+
+		return 0, fmt.Errorf("failed to link program: %v", logValue)
+	}
+
+	gl.DeleteShader(vertexShader)
+	gl.DeleteShader(fragmentShader)
+
+	return program, nil
+}
+
+func compileShader(source string, shaderType uint32) (uint32, error) {
+	shader := gl.CreateShader(shaderType)
+
+	cSources, free := gl.Strs(source)
+	gl.ShaderSource(shader, 1, cSources, nil)
+	free()
+	gl.CompileShader(shader)
+
+	var status int32
+	gl.GetShaderiv(shader, gl.COMPILE_STATUS, &status)
+	if status == gl.FALSE {
+		var logLength int32
+		gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, &logLength)
+
+		logValue := strings.Repeat("\x00", int(logLength+1))
+		gl.GetShaderInfoLog(shader, logLength, nil, gl.Str(logValue))
+
+		return 0, fmt.Errorf("failed to compile %v: %v", source, logValue)
+	}
+
+	return shader, nil
 }
 
 func (w *windowImpl) SetKeyListener(listener key.Listener) {
@@ -344,8 +452,70 @@ func translateKey(glfwKey glfw.Key) key.Key {
 	}
 }
 
-func (w *windowImpl) CreateGraphics() graphics.Graphics {
-	return nil
+func (w *windowImpl) CreateImageLoader() ui.ImageLoader {
+	return &imageLoaderImpl{}
+}
+
+type imageLoaderImpl struct {
+}
+
+type imageImpl struct {
+	textureId uint32
+}
+
+func (i *imageLoaderImpl) LoadImage(file string) ui.Image {
+	imgFile, err := os.Open(file)
+	if err != nil {
+		log.Fatalf("texture %q not found on disk: %v", file, err)
+	}
+	img, _, err := image.Decode(imgFile)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	rgba := image.NewRGBA(img.Bounds())
+	rgbaSize := rgba.Rect.Size()
+
+	if rgba.Stride != rgbaSize.X*4 {
+		log.Fatalln("unsupported stride")
+	}
+	draw.Draw(rgba, rgba.Bounds(), img, image.Point{X: 0, Y: 0}, draw.Src)
+
+	var texture uint32
+	gl.GenTextures(1, &texture)
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, texture)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(rgbaSize.X), int32(rgbaSize.Y), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba.Pix))
+
+	return imageImpl{textureId: texture}
+}
+
+func (i *imageLoaderImpl) UnloadImage(image ui.Image) {
+	img := image.(imageImpl)
+	gl.DeleteTextures(1, &img.textureId)
+}
+
+func (w *windowImpl) CreateGraphics() ui.Graphics {
+	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
+	gl.Clear(gl.COLOR_BUFFER_BIT)
+
+	return &graphicsImpl{}
+}
+
+type graphicsImpl struct {
+}
+
+func (g *graphicsImpl) DrawImage(image ui.Image, x int, y int) {
+	img := image.(imageImpl)
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, img.textureId)
+
+	gl.DrawArrays(gl.TRIANGLES, 0, 6)
 }
 
 func (w *windowImpl) ShouldClose() bool {
@@ -359,8 +529,8 @@ func (w *windowImpl) Update() {
 
 func (w *windowImpl) Destroy() {
 	gl.DeleteVertexArrays(1, &w.vertexArrayObject)
-	gl.DeleteBuffers(1, &w.vertextBufferObject)
-	gl.DeleteBuffers(1, &w.elementBufferObject)
+	gl.DeleteBuffers(1, &w.vertexBufferObject)
+	gl.DeleteProgram(w.shaderProgram)
 
 	w.glfwWindow.Destroy()
 	glfw.Terminate()

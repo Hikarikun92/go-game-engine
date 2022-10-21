@@ -27,8 +27,10 @@ func (game *gameImpl) Start() {
 
 	window.SetKeyListener(game)
 
+	imageLoader := window.CreateImageLoader()
+
 	running := true
-	game.state.Load()
+	game.state.Load(imageLoader)
 
 	previousTime := time.Now()
 	ticker := time.NewTicker(16667 * time.Microsecond)
@@ -36,7 +38,7 @@ func (game *gameImpl) Start() {
 	for running {
 		if window.ShouldClose() {
 			ticker.Stop()
-			game.state.Unload()
+			game.state.Unload(imageLoader)
 			running = false
 			break
 		}
@@ -47,17 +49,18 @@ func (game *gameImpl) Start() {
 
 			nextState := game.state.Update(delta)
 
-			//currentState.Draw(graphics)
+			graphics := window.CreateGraphics()
+			game.state.Draw(graphics)
 
 			if nextState == nil {
 				ticker.Stop()
-				game.state.Unload()
+				game.state.Unload(imageLoader)
 				running = false
 			} else if nextState != game.state {
-				game.state.Unload()
+				game.state.Unload(imageLoader)
 
 				game.state = nextState
-				game.state.Load()
+				game.state.Load(imageLoader)
 			}
 
 			previousTime = t
