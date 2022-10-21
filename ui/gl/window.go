@@ -17,10 +17,11 @@ func NewWindowManager() ui.WindowManager {
 }
 
 type windowImpl struct {
-	glfwWindow         *glfw.Window
-	vertexArrayObject  uint32
-	vertexBufferObject uint32
-	shaderProgram      uint32
+	glfwWindow          *glfw.Window
+	vertexArrayObject   uint32
+	vertexBufferObject  uint32
+	elementBufferObject uint32
+	shaderProgram       uint32
 }
 
 /*
@@ -67,23 +68,28 @@ func (*glWindowManager) CreateMainWindow() ui.Window {
 
 	vertices := []float32{
 		// pos    // tex
-		0.0, 1.0, 0.0, 0.0,
-		1.0, 0.0, 1.0, 1.0,
-		0.0, 0.0, 0.0, 1.0,
-
-		0.0, 1.0, 0.0, 0.0,
-		1.0, 1.0, 1.0, 0.0,
-		1.0, 0.0, 1.0, 1.0,
+		0.0, 1.0, 0.0, 0.0, //bottom left
+		1.0, 0.0, 1.0, 1.0, //top right
+		0.0, 0.0, 0.0, 1.0, //top left
+		1.0, 1.0, 1.0, 0.0, //bottom right
+	}
+	indices := []int32{
+		0, 1, 2,
+		0, 3, 1,
 	}
 
-	var vao, vbo uint32
+	var vao, vbo, ebo uint32
 	gl.GenVertexArrays(1, &vao)
 	gl.GenBuffers(1, &vbo)
+	gl.GenBuffers(1, &ebo)
 
 	gl.BindVertexArray(vao)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
+
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices)*4, gl.Ptr(indices), gl.STATIC_DRAW)
 
 	//position and texture attributes (the "location = 0" in the shader)
 	gl.VertexAttribPointerWithOffset(0, 4, gl.FLOAT, false, 4*4 /* 4 values per vertex * 4 bytes per value */, 0)
@@ -92,10 +98,11 @@ func (*glWindowManager) CreateMainWindow() ui.Window {
 	window.Show()
 
 	return &windowImpl{
-		glfwWindow:         window,
-		vertexArrayObject:  vao,
-		vertexBufferObject: vbo,
-		shaderProgram:      shaderProgram,
+		glfwWindow:          window,
+		vertexArrayObject:   vao,
+		vertexBufferObject:  vbo,
+		elementBufferObject: ebo,
+		shaderProgram:       shaderProgram,
 	}
 }
 
@@ -137,6 +144,7 @@ func (w *windowImpl) Update() {
 func (w *windowImpl) Destroy() {
 	gl.DeleteVertexArrays(1, &w.vertexArrayObject)
 	gl.DeleteBuffers(1, &w.vertexBufferObject)
+	gl.DeleteBuffers(1, &w.elementBufferObject)
 	gl.DeleteProgram(w.shaderProgram)
 
 	w.glfwWindow.Destroy()

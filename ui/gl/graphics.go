@@ -13,5 +13,5 @@ func (g *graphicsImpl) DrawImage(image ui.Image, x int, y int) {
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_2D, img.textureId)
 
-	gl.DrawArrays(gl.TRIANGLES, 0, 6)
+	gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
 }
