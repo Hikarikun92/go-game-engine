@@ -13,7 +13,7 @@ type graphicsImpl struct {
 func (g *graphicsImpl) DrawImage(image ui.Image, x int, y int) {
 	img := image.(imageImpl)
 
-	model := mgl32.Translate3D(float32(x), float32(y), -1)
+	model := mgl32.Translate3D(float32(x), float32(y), 0)
 	model = model.Mul4(mgl32.Scale3D(img.width, img.height, 1.0))
 
 	modelUniform := gl.GetUniformLocation(g.shaderProgram, gl.Str("model\x00"))
