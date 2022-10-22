@@ -1,6 +1,7 @@
 package gl
 
 import (
+	"github.com/Hikarikun92/go-game-engine/cursor"
 	"github.com/Hikarikun92/go-game-engine/key"
 	"github.com/Hikarikun92/go-game-engine/ui"
 	"github.com/go-gl/gl/v4.1-core/gl"
@@ -128,6 +129,12 @@ func (w *windowImpl) SetKeyListener(listener key.Listener) {
 		} else if action == glfw.Release {
 			listener.KeyReleased(k)
 		}
+	})
+}
+
+func (w *windowImpl) SetCursorListener(cursorListener cursor.Listener) {
+	w.glfwWindow.SetCursorPosCallback(func(w *glfw.Window, xpos float64, ypos float64) {
+		cursorListener.CursorMoved(int(xpos), HEIGHT-int(ypos)) //invert Y axis
 	})
 }
 

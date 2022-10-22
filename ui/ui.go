@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/Hikarikun92/go-game-engine/cursor"
 	"github.com/Hikarikun92/go-game-engine/key"
 )
 
@@ -10,6 +11,7 @@ type WindowManager interface {
 
 type Window interface {
 	SetKeyListener(keyListener key.Listener)
+	SetCursorListener(cursorListener cursor.Listener)
 
 	CreateImageLoader() ImageLoader
 	CreateGraphics() Graphics

@@ -1,10 +1,10 @@
 package game
 
 import (
+	"github.com/Hikarikun92/go-game-engine/cursor"
 	"github.com/Hikarikun92/go-game-engine/key"
 	"github.com/Hikarikun92/go-game-engine/state"
 	"github.com/Hikarikun92/go-game-engine/ui"
-	"log"
 	"time"
 )
 
@@ -26,6 +26,7 @@ func (game *gameImpl) Start() {
 	defer window.Destroy()
 
 	window.SetKeyListener(game)
+	window.SetCursorListener(game)
 
 	imageLoader := window.CreateImageLoader()
 
@@ -71,8 +72,6 @@ func (game *gameImpl) Start() {
 }
 
 func (game *gameImpl) KeyPressed(k key.Key) {
-	log.Println("KeyPressed:", k)
-
 	listener, isListener := game.state.(key.Listener)
 	if isListener {
 		listener.KeyPressed(k)
@@ -80,10 +79,15 @@ func (game *gameImpl) KeyPressed(k key.Key) {
 }
 
 func (game *gameImpl) KeyReleased(k key.Key) {
-	log.Println("KeyReleased:", k)
-
 	listener, isListener := game.state.(key.Listener)
 	if isListener {
 		listener.KeyReleased(k)
+	}
+}
+
+func (game *gameImpl) CursorMoved(x int, y int) {
+	listener, isListener := game.state.(cursor.Listener)
+	if isListener {
+		listener.CursorMoved(x, y)
 	}
 }
