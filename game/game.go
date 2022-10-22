@@ -3,6 +3,7 @@ package game
 import (
 	"github.com/Hikarikun92/go-game-engine/cursor"
 	"github.com/Hikarikun92/go-game-engine/key"
+	"github.com/Hikarikun92/go-game-engine/settings"
 	"github.com/Hikarikun92/go-game-engine/state"
 	"github.com/Hikarikun92/go-game-engine/ui"
 	"time"
@@ -14,15 +15,16 @@ type Game interface {
 
 type gameImpl struct {
 	windowManager ui.WindowManager
+	settings      *settings.Settings
 	state         state.State
 }
 
-func NewGame(windowManager ui.WindowManager, initialState state.State) Game {
-	return &gameImpl{windowManager: windowManager, state: initialState}
+func NewGame(windowManager ui.WindowManager, initialState state.State, settings *settings.Settings) Game {
+	return &gameImpl{windowManager: windowManager, state: initialState, settings: settings}
 }
 
 func (game *gameImpl) Start() {
-	window := game.windowManager.CreateMainWindow()
+	window := game.windowManager.CreateMainWindow(game.settings)
 	defer window.Destroy()
 
 	window.SetKeyListener(game)
@@ -34,7 +36,7 @@ func (game *gameImpl) Start() {
 	game.state.Load(imageLoader)
 
 	previousTime := time.Now()
-	ticker := time.NewTicker(16667 * time.Microsecond)
+	ticker := time.NewTicker(1 * time.Second / time.Duration(game.settings.Fps))
 
 	for running {
 		if window.ShouldClose() {
@@ -88,6 +90,6 @@ func (game *gameImpl) KeyReleased(k key.Key) {
 func (game *gameImpl) CursorMoved(x int, y int) {
 	listener, isListener := game.state.(cursor.Listener)
 	if isListener {
-		listener.CursorMoved(x, y)
+		listener.CursorMoved(x, game.settings.Height-y) //invert Y axis
 	}
 }

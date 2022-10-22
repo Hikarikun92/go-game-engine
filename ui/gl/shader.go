@@ -6,6 +6,9 @@ import (
 	"strings"
 )
 
+// Vertex shader using the projection matrix (defining the screen size and orientation), the model's vertices and the
+// model's attributes (position, size etc.). The X and Y coordinates of each vertex are the position of the vertex, and
+// the last 2 coordinates (Z and W) are the coordinates of the associated texture.
 var vertexShader = `
 #version 330 core
 layout (location = 0) in vec4 vertexData;
@@ -22,6 +25,7 @@ void main()
 }
 ` + "\x00"
 
+// Fragment shader that will simply retrieve the texture's color at the specified point.
 var fragmentShader = `
 #version 330
 

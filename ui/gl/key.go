@@ -5,6 +5,7 @@ import (
 	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
+// Adapter for GLFW's keys and the engine's keys
 func translateKey(glfwKey glfw.Key) key.Key {
 	switch glfwKey {
 	case glfw.KeySpace:

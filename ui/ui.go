@@ -3,10 +3,11 @@ package ui
 import (
 	"github.com/Hikarikun92/go-game-engine/cursor"
 	"github.com/Hikarikun92/go-game-engine/key"
+	"github.com/Hikarikun92/go-game-engine/settings"
 )
 
 type WindowManager interface {
-	CreateMainWindow() Window
+	CreateMainWindow(settings *settings.Settings) Window
 }
 
 type Window interface {

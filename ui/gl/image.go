@@ -3,9 +3,14 @@ package gl
 import (
 	"github.com/Hikarikun92/go-game-engine/ui"
 	"github.com/go-gl/gl/v4.1-core/gl"
+	_ "golang.org/x/image/bmp"
+	_ "golang.org/x/image/tiff"
+	_ "golang.org/x/image/webp"
 	"image"
 	"image/draw"
+	_ "image/gif"
 	_ "image/jpeg"
+	_ "image/png"
 	"log"
 	"os"
 )
@@ -24,6 +29,8 @@ func (i *imageLoaderImpl) LoadImage(file string) ui.Image {
 	if err != nil {
 		log.Fatalf("texture %q not found on disk: %v", file, err)
 	}
+
+	//Decode the image to a know structure (using the imports with _)
 	img, _, err := image.Decode(imgFile)
 	if err != nil {
 		log.Fatalln(err)
@@ -37,6 +44,7 @@ func (i *imageLoaderImpl) LoadImage(file string) ui.Image {
 	}
 	draw.Draw(rgba, rgba.Bounds(), img, image.Point{X: 0, Y: 0}, draw.Src)
 
+	//Create an OpenGL texture with the image data
 	var texture uint32
 	gl.GenTextures(1, &texture)
 	gl.ActiveTexture(gl.TEXTURE0)
